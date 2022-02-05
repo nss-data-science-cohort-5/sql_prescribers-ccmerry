@@ -69,7 +69,9 @@ HAVING(sum(script.total_claim_count) IS NULL)
 --Yes
 
 
---d. Difficult Bonus: Do not attempt until you have solved all other problems! For each specialty, report the percentage of total claims by that specialty which are for opioids. Which specialties have a high percentage of opioids?
+--d. Difficult Bonus: Do not attempt until you have solved all other problems! 
+--For each specialty, report the percentage of total claims by that specialty which are for opioids. 
+--Which specialties have a high percentage of opioids?
 
 
 --3.) 
@@ -172,8 +174,109 @@ FROM prescription
 WHERE prescription.total_claim_count >= 3000;
 
 
---7.) The goal of this exercise is to generate a full list of all pain management specialists in Nashville and the number of claims they had for each opioid. a. First, create a list of all npi/drug_name combinations for pain management specialists (specialty_description = 'Pain Managment') in the city of Nashville (nppes_provider_city = 'NASHVILLE'), where the drug is an opioid (opiod_drug_flag = 'Y'). Warning: Double-check your query before running it. You will likely only need to use the prescriber and drug tables.
+--7.) The goal of this exercise is to generate a full list of all pain management specialists in Nashville 
+---and the number of claims they had for each opioid. 
+--a. First, create a list of all npi/drug_name combinations for pain management specialists 
+--(specialty_description = 'Pain Management') in the city of Nashville (nppes_provider_city = 'NASHVILLE'), 
+--where the drug is an opioid (opiod_drug_flag = 'Y'). Warning: Double-check your query before running it. 
+--You will likely only need to use the prescriber and drug tables.
+WITH d_opioid AS (
+	SELECT drug_name
+	FROM drug
+	WHERE opioid_drug_flag = 'Y'
+)
+SELECT scribe.npi, drug.drug_name
+FROM prescriber as scribe
+	CROSS JOIN drug
+WHERE scribe.specialty_description = 'Pain Management'
+AND scribe.nppes_provider_city = 'NASHVILLE'
+AND drug.opioid_drug_flag = 'Y'
 
---b. Next, report the number of claims per drug per prescriber. Be sure to include all combinations, whether or not the prescriber had any claims. You should report the npi, the drug name, and the number of claims (total_claim_count).
+/*
+SELECT scribe.npi, script.drug_name
+FROM prescriber AS scribe
+	LEFT JOIN prescription AS script
+	ON scribe.npi = script.npi
+	LEFT JOIN drug
+	ON drug.drug_name = script.drug_name
+WHERE scribe.specialty_description = 'Pain Management'
+AND scribe.nppes_provider_city = 'NASHVILLE'
+AND drug.opioid_drug_flag = 'Y';
+*/
+
+--b. Next, report the number of claims per drug per prescriber. Be sure to include all combinations, 
+--whether or not the prescriber had any claims. You should report the npi, the drug name, 
+--and the number of claims (total_claim_count).
+WITH d_opioid AS (
+	SELECT scribe.npi, drug.drug_name, CONCAT(scribe.npi::text,drug.drug_name) AS id_concat
+	FROM prescriber as scribe
+		CROSS JOIN drug
+	WHERE scribe.specialty_description = 'Pain Management'
+	AND scribe.nppes_provider_city = 'NASHVILLE'
+	AND drug.opioid_drug_flag = 'Y'
+),
+combo AS (
+	SELECT scribe.npi, script.drug_name, script.total_claim_count, CONCAT(scribe.npi::text,script.drug_name) AS combo_concat
+	FROM prescriber AS scribe
+		LEFT JOIN prescription AS script
+		ON scribe.npi = script.npi
+		LEFT JOIN drug
+		ON drug.drug_name = script.drug_name
+	WHERE scribe.specialty_description = 'Pain Management'
+	AND scribe.nppes_provider_city = 'NASHVILLE'
+	AND drug.opioid_drug_flag = 'Y'
+)
+SELECT d_opioid.npi, d_opioid.drug_name, COALESCE(combo.total_claim_count,0) AS total_claim_count
+FROM d_opioid
+	LEFT JOIN combo
+	ON combo.combo_concat = d_opioid.id_concat
+ORDER BY total_claim_count;
 
 --c. Finally, if you have not done so already, fill in any missing values for total_claim_count with 0. Hint - Google the COALESCE function.
+
+--PART 2
+--1.) How many npi numbers appear in the prescriber table but not in the prescription table?
+SELECT COUNT(DISTINCT scribe.npi)
+FROM prescriber AS scribe
+LEFT JOIN prescription AS script
+ON scribe.npi = script.npi;
+
+--2.) 
+--a. Find the top five drugs (generic_name) prescribed by prescribers with the specialty of Family Practice.
+SELECT scribe.npi
+FROM prescriber AS scribe
+WHERE specialty_description = 'Family Practice'
+
+SELECT drug_name, generic_name
+FROM drug
+
+SELECT script.drug_name, SUM(script.total_claim_count)
+FROM prescription AS script
+	INNER JOIN drug
+	ON script.drug_name = drug.generic_name
+GROUP BY script.drug_name
+
+--b. Find the top five drugs (generic_name) prescribed by prescribers with the specialty of Cardiology.
+
+--c. Which drugs appear in the top five prescribed for both Family Practice prescribers and Cardiologists? Combine what you did for parts a and b into a single query to answer this question.
+
+--3.) Your goal in this question is to generate a list of the top prescribers in each of the major 
+--metropolitan areas of Tennessee.
+
+--a. First, write a query that finds the top 5 prescribers in Nashville in terms of 
+--the total number of claims (total_claim_count) across all drugs. 
+--Report the npi, the total number of claims, and include a column showing the city.
+
+--b. Now, report the same for Memphis.
+
+--c. Combine your results from a and b, along with the results for Knoxville and Chattanooga.
+
+--4.)
+--Find all counties which had an above-average (for the state) number of overdose deaths in 2017. Report the county name and number of overdose deaths.
+
+--5.)
+--a. Write a query that finds the total population of Tennessee.
+
+--b. Build off of the query that you wrote in part a to write a query that returns 
+--for each county that county's name, its population, and the percentage of the 
+--total population of Tennessee that is contained in that county.
